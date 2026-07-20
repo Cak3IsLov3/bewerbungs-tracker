@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bewerbungs-Tracker</title>
+<style>
+  :root {
+    --bg: #f5f6fa;
+    --card: #ffffff;
+    --accent: #2d5be3;
+    --accent-light: #e8edfb;
+    --text: #1a1a2e;
+    --text-muted: #6b7280;
+    --border: #e2e4ea;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --info: #3b82f6;
+    --radius: 10px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+
+  .header { text-align: center; margin-bottom: 28px; }
+  .header h1 { font-size: 1.75rem; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+  .header p { color: var(--text-muted); font-size: 0.92rem; }
+
+  .counts {
+    display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px;
+  }
+  .count-chip {
+    background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+    padding: 6px 14px; font-size: 0.82rem; color: var(--text-muted); box-shadow: var(--shadow);
+  }
+  .count-chip b { color: var(--text); font-weight: 600; }
+
+  .toolbar {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px;
+  }
+  .toolbar select {
+    padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius);
+    font-size: 0.88rem; background: var(--card); color: var(--text); cursor: pointer;
+  }
+  .toolbar .spacer { flex: 1; }
+
+  .btn {
+    padding: 8px 16px; border: none; border-radius: var(--radius); font-size: 0.88rem;
+    font-weight: 500; cursor: pointer; transition: background 0.15s, transform 0.1s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #2249c4; }
+  .btn-secondary { background: var(--accent-light); color: var(--accent); }
+  .btn-secondary:hover { background: #d6def7; }
+  .btn-danger { background: #fef2f2; color: var(--danger); }
+  .btn-danger:hover { background: #fee2e2; }
+  .btn-sm { padding: 5px 10px; font-size: 0.8rem; }
+
+  .add-form {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 0; max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.3s ease;
+    margin-bottom: 16px; box-shadow: var(--shadow);
+  }
+  .add-form.open { max-height: 500px; padding: 20px; }
+  .form-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+  .form-grid input, .form-grid select {
+    padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 0.88rem; width: 100%;
+  }
+  .form-grid .full { grid-column: 1 / -1; }
+  .form-actions { display: flex; gap: 10px; margin-top: 14px; }
+
+  .job-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 18px 20px; margin-bottom: 12px; box-shadow: var(--shadow);
+    transition: border-color 0.15s;
+  }
+  .job-card:hover { border-color: var(--accent); }
+  .job-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+  .job-title { font-size: 1.05rem; font-weight: 600; }
+  .job-company { color: var(--text-muted); font-size: 0.88rem; }
+  .job-meta { font-size: 0.8rem; color: var(--text-muted); margin-top: 6px; }
+
+  .status-badge {
+    display: inline-block; padding: 3px 10px; border-radius: 12px;
+    font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  .status-new { background: #dbeafe; color: #1e40af; }
+  .status-draft { background: #fef3c7; color: #92400e; }
+  .status-applied { background: #d1fae5; color: #065f46; }
+  .status-interview { background: #ede9fe; color: #5b21b6; }
+  .status-rejected { background: #fee2e2; color: #991b1b; }
+
+  .remote-tag {
+    display: inline-block; padding: 2px 8px; border-radius: 8px;
+    font-size: 0.72rem; font-weight: 500; margin-left: 6px;
+  }
+  .remote-yes { background: #d1fae5; color: #065f46; }
+  .remote-hybrid { background: #fef3c7; color: #92400e; }
+  .remote-no { background: #f3f4f6; color: #6b7280; }
+
+  .job-actions {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center;
+  }
+  .job-actions select {
+    padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 0.8rem; background: var(--card);
+  }
+  .job-actions a {
+    color: var(--accent); font-size: 0.82rem; text-decoration: none; font-weight: 500;
+  }
+  .job-actions a:hover { text-decoration: underline; }
+
+  .notes-area {
+    width: 100%; margin-top: 10px; padding: 8px 10px; border: 1px solid var(--border);
+    border-radius: 6px; font-size: 0.85rem; font-family: inherit; resize: vertical; min-height: 40px;
+  }
+
+  .empty-state {
+    text-align: center; padding: 40px; color: var(--text-muted); font-size: 0.95rem;
+  }
+
+  .info-banner {
+    background: var(--accent-light); border: 1px solid #c7d2fe; border-radius: var(--radius);
+    padding: 12px 16px; margin-bottom: 16px; font-size: 0.85rem; color: #3730a3; line-height: 1.5;
+  }
+
+  @media (max-width: 600px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .counts { gap: 6px; }
+    .count-chip { padding: 4px 10px; font-size: 0.78rem; }
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const STORAGE_KEY = 'bewerbungen_tracker';
+
+const STATUS_LABELS = {
+  new: 'Neu',
+  draft: 'Entwurf fertig',
+  applied: 'Beworben',
+  interview: 'Vorstellungsgespräch',
+  rejected: 'Abgelehnt'
+};
+const STATUS_CLASSES = {
+  new: 'status-new',
+  draft: 'status-draft',
+  applied: 'status-applied',
+  interview: 'status-interview',
+  rejected: 'status-rejected'
+};
+const REMOTE_LABELS = { remote: 'Remote', hybrid: 'Hybrid', onsite: 'Vor Ort' };
+const REMOTE_CLASSES = { remote: 'remote-yes', hybrid: 'remote-hybrid', onsite: 'remote-no' };
+
+let jobs = [];
+let filter = 'all';
+
+function loadJobs() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      jobs = JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error('Laden fehlgeschlagen', e);
+    jobs = [];
+  }
+  render();
+}
+
+function saveJobs() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
+  } catch (e) {
+    console.error('Speichern fehlgeschlagen', e);
+  }
+}
+
+function exportToExcel() {
+  if (jobs.length === 0) { alert('Keine Stellen zum Exportieren vorhanden.'); return; }
+  const today = new Date().toISOString().slice(0,10);
+  const rows = jobs.map(j => ({
+    'Stellentitel': j.role,
+    'Unternehmen': j.company,
+    'Standort': j.location,
+    'Remote': REMOTE_LABELS[j.remote] || j.remote,
+    'Status': STATUS_LABELS[j.status] || j.status,
+    'Hinzugefügt': j.dateAdded,
+    'Notizen': j.notes || '',
+    'Stellenlink': j.url || ''
+  }));
+
+  if (typeof XLSX !== 'undefined') {
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [
+      { wch: 35 }, { wch: 22 }, { wch: 24 }, { wch: 10 },
+      { wch: 18 }, { wch: 12 }, { wch: 50 }, { wch: 55 }
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Bewerbungen');
+    XLSX.writeFile(wb, `bewerbungen_${today}.xlsx`);
+  } else {
+    const headers = Object.keys(rows[0]);
+    const csvEscape = v => `"${String(v).replace(/"/g, '""')}"`;
+    const csv = [headers.join(',')]
+      .concat(rows.map(r => headers.map(h => csvEscape(r[h])).join(',')))
+      .join('\r\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `bewerbungen_${today}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+}
+
+function importFromExcel(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws);
+      let count = 0;
+      rows.forEach(row => {
+        const role = row['Stellentitel'] || '';
+        const company = row['Unternehmen'] || '';
+        if (!role || !company) return;
+        // Avoid duplicates by checking role+company
+        const exists = jobs.some(j => j.role === role && j.company === company);
+        if (exists) return;
+        const remoteVal = Object.entries(REMOTE_LABELS).find(([k,v]) => v === row['Remote']);
+        const statusVal = Object.entries(STATUS_LABELS).find(([k,v]) => v === row['Status']);
+        jobs.unshift({
+          id: Date.now().toString() + Math.random().toString(36).slice(2,6),
+          role,
+          company,
+          location: row['Standort'] || '',
+          remote: remoteVal ? remoteVal[0] : 'onsite',
+          url: row['Stellenlink'] || '',
+          status: statusVal ? statusVal[0] : 'new',
+          dateAdded: row['Hinzugefügt'] || new Date().toISOString().slice(0,10),
+          notes: row['Notizen'] || ''
+        });
+        count++;
+      });
+      saveJobs();
+      render();
+      alert(`${count} Stelle(n) importiert.`);
+    } catch (err) {
+      alert('Fehler beim Importieren: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML;
+}
+
+function render() {
+  const filtered = filter === 'all' ? jobs : jobs.filter(j => j.status === filter);
+  const counts = { total: jobs.length, new: 0, draft: 0, applied: 0, interview: 0 };
+  jobs.forEach(j => { if (counts[j.status] !== undefined) counts[j.status]++; });
+
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="info-banner">
+      Deine Daten werden lokal in diesem Browser gespeichert. Wenn du den Browser oder Computer wechselst, nutze „Als Excel exportieren" und „Excel importieren", um deine Daten mitzunehmen.
+    </div>
+    <div class="header">
+      <h1>Bewerbungs-Tracker</h1>
+      <p>Stellenangebote sammeln, Status verfolgen, Überblick behalten.</p>
+    </div>
+    <div class="counts">
+      <span class="count-chip"><b>${counts.total}</b> gesamt</span>
+      <span class="count-chip"><b>${counts.new}</b> neu</span>
+      <span class="count-chip"><b>${counts.draft}</b> Entwurf fertig</span>
+      <span class="count-chip"><b>${counts.applied}</b> beworben</span>
+      <span class="count-chip"><b>${counts.interview}</b> Gespräch</span>
+    </div>
+    <div class="toolbar">
+      <select id="filterSelect">
+        <option value="all"${filter==='all'?' selected':''}>Alle Status</option>
+        ${Object.entries(STATUS_LABELS).map(([k,v]) =>
+          `<option value="${k}"${filter===k?' selected':''}>${v}</option>`
+        ).join('')}
+      </select>
+      <span class="spacer"></span>
+      <button class="btn btn-primary" id="toggleAdd">+ Stelle hinzufügen</button>
+      <button class="btn btn-secondary" id="exportExcel">⬇ Als Excel exportieren</button>
+      <button class="btn btn-secondary" id="importExcel">⬆ Excel importieren</button>
+      <input type="file" id="importFile" accept=".xlsx,.xls,.csv" style="display:none">
+    </div>
+    <div class="add-form" id="addForm">
+      <div class="form-grid">
+        <input type="text" id="newRole" placeholder="Stellentitel">
+        <input type="text" id="newCompany" placeholder="Unternehmen">
+        <input type="text" id="newLocation" placeholder="Standort">
+        <select id="newRemote">
+          <option value="remote">Remote</option>
+          <option value="hybrid">Hybrid</option>
+          <option value="onsite">Vor Ort</option>
+        </select>
+        <input type="text" class="full" id="newUrl" placeholder="Link zur Stelle (https://...)">
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" id="saveNewJob">Speichern</button>
+        <button class="btn btn-secondary" id="cancelNewJob">Abbrechen</button>
+      </div>
+    </div>
+    <div id="jobList">
+      ${filtered.length === 0 ? '<div class="empty-state">Keine Stellen in dieser Kategorie.</div>' :
+        filtered.map(j => `
+          <div class="job-card" data-id="${j.id}">
+            <div class="job-top">
+              <div>
+                <div class="job-title">${escapeHtml(j.role)}</div>
+                <div class="job-company">${escapeHtml(j.company)} · ${escapeHtml(j.location)}
+                  <span class="remote-tag ${REMOTE_CLASSES[j.remote] || 'remote-no'}">${REMOTE_LABELS[j.remote] || j.remote}</span>
+                </div>
+                <div class="job-meta">Hinzugefügt am ${j.dateAdded}</div>
+              </div>
+              <span class="status-badge ${STATUS_CLASSES[j.status] || ''}">${STATUS_LABELS[j.status] || j.status}</span>
+            </div>
+            <div class="job-actions">
+              <select class="status-select" data-id="${j.id}">
+                ${Object.entries(STATUS_LABELS).map(([k,v]) =>
+                  `<option value="${k}"${j.status===k?' selected':''}>${v}</option>`
+                ).join('')}
+              </select>
+              ${j.url ? `<a href="${escapeHtml(j.url)}" target="_blank" rel="noopener">Stelle öffnen</a>` : ''}
+              <button class="btn btn-danger btn-sm delete-btn" data-id="${j.id}">Löschen</button>
+            </div>
+            <textarea class="notes-area" data-id="${j.id}" placeholder="Notizen...">${escapeHtml(j.notes || '')}</textarea>
+          </div>
+        `).join('')
+      }
+    </div>
+  `;
+
+  // Wire events
+  document.getElementById('filterSelect').onchange = e => { filter = e.target.value; render(); };
+  document.getElementById('exportExcel').onclick = exportToExcel;
+  document.getElementById('importExcel').onclick = () => document.getElementById('importFile').click();
+  document.getElementById('importFile').onchange = function() {
+    if (this.files[0]) importFromExcel(this.files[0]);
+    this.value = '';
+  };
+  document.getElementById('toggleAdd').onclick = () => document.getElementById('addForm').classList.toggle('open');
+  document.getElementById('cancelNewJob').onclick = () => document.getElementById('addForm').classList.remove('open');
+  document.getElementById('saveNewJob').onclick = () => {
+    const role = document.getElementById('newRole').value.trim();
+    const company = document.getElementById('newCompany').value.trim();
+    if (!role || !company) return;
+    jobs.unshift({
+      id: Date.now().toString(),
+      role,
+      company,
+      location: document.getElementById('newLocation').value.trim() || '',
+      remote: document.getElementById('newRemote').value,
+      url: document.getElementById('newUrl').value.trim(),
+      status: 'new',
+      dateAdded: new Date().toISOString().slice(0,10),
+      notes: ''
+    });
+    saveJobs();
+    document.getElementById('addForm').classList.remove('open');
+    render();
+  };
+
+  document.querySelectorAll('.status-select').forEach(sel => {
+    sel.onchange = function() {
+      const job = jobs.find(j => j.id === this.dataset.id);
+      if (job) { job.status = this.value; saveJobs(); render(); }
+    };
+  });
+  document.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.onclick = function() {
+      jobs = jobs.filter(j => j.id !== this.dataset.id);
+      saveJobs();
+      render();
+    };
+  });
+  document.querySelectorAll('.notes-area').forEach(ta => {
+    ta.onblur = function() {
+      const job = jobs.find(j => j.id === this.dataset.id);
+      if (job) { job.notes = this.value; saveJobs(); }
+    };
+  });
+}
+
+document.addEventListener('DOMContentLoaded', loadJobs);
+</script>
+</head>
+<body>
+  <div class="container" id="app"></div>
+</body>
+</html>
