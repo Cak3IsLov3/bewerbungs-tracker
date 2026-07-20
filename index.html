@@ -56,16 +56,19 @@
   .btn-primary:hover { background: #2249c4; }
   .btn-secondary { background: var(--accent-light); color: var(--accent); }
   .btn-secondary:hover { background: #d6def7; }
+  .btn-success { background: #d1fae5; color: #065f46; }
+  .btn-success:hover { background: #a7f3d0; }
   .btn-danger { background: #fef2f2; color: var(--danger); }
   .btn-danger:hover { background: #fee2e2; }
   .btn-sm { padding: 5px 10px; font-size: 0.8rem; }
 
-  .add-form {
+  .add-form, .cv-section {
     background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 0; max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.3s ease;
+    padding: 0; max-height: 0; overflow: hidden; transition: max-height 0.4s ease, padding 0.3s ease;
     margin-bottom: 16px; box-shadow: var(--shadow);
   }
   .add-form.open { max-height: 500px; padding: 20px; }
+  .cv-section.open { max-height: 2000px; padding: 20px; }
   .form-grid {
     display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
   }
@@ -75,6 +78,26 @@
   }
   .form-grid .full { grid-column: 1 / -1; }
   .form-actions { display: flex; gap: 10px; margin-top: 14px; }
+
+  .cv-box {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px 20px; margin-bottom: 16px; box-shadow: var(--shadow);
+  }
+  .cv-box-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .cv-box-header h3 { font-size: 1rem; font-weight: 600; }
+  .cv-status { font-size: 0.82rem; padding: 3px 10px; border-radius: 12px; font-weight: 500; }
+  .cv-loaded { background: #d1fae5; color: #065f46; }
+  .cv-empty { background: #fee2e2; color: #991b1b; }
+  .cv-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+  .cv-preview {
+    margin-top: 12px; padding: 10px; background: var(--bg); border-radius: 6px;
+    font-size: 0.82rem; color: var(--text-muted); max-height: 120px; overflow-y: auto;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .cv-textarea {
+    width: 100%; min-height: 150px; padding: 10px; border: 1px solid var(--border);
+    border-radius: 6px; font-size: 0.85rem; font-family: inherit; resize: vertical; margin-top: 10px;
+  }
 
   .job-card {
     background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
@@ -132,6 +155,35 @@
     padding: 12px 16px; margin-bottom: 16px; font-size: 0.85rem; color: #3730a3; line-height: 1.5;
   }
 
+  /* Modal */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    z-index: 1000; justify-content: center; align-items: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--card); border-radius: var(--radius); padding: 24px; max-width: 620px;
+    width: 92%; box-shadow: 0 10px 40px rgba(0,0,0,0.15); position: relative;
+    max-height: 85vh; overflow-y: auto;
+  }
+  .modal h3 { margin-bottom: 8px; font-size: 1.05rem; }
+  .modal p { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; }
+  .modal textarea {
+    width: 100%; min-height: 200px; padding: 10px; border: 1px solid var(--border);
+    border-radius: 6px; font-family: inherit; font-size: 0.85rem; resize: vertical;
+  }
+  .modal-actions { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; }
+
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: var(--radius); padding: 24px;
+    text-align: center; color: var(--text-muted); font-size: 0.88rem; margin-top: 10px;
+    transition: border-color 0.2s, background 0.2s; cursor: pointer;
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent); background: var(--accent-light);
+  }
+  .drop-zone input { display: none; }
+
   @media (max-width: 600px) {
     .form-grid { grid-template-columns: 1fr; }
     .counts { gap: 6px; }
@@ -139,8 +191,11 @@
   }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 const STORAGE_KEY = 'bewerbungen_tracker';
+const CV_KEY = 'bewerbungen_cv';
 
 const STATUS_LABELS = {
   new: 'Neu',
@@ -160,64 +215,181 @@ const REMOTE_LABELS = { remote: 'Remote', hybrid: 'Hybrid', onsite: 'Vor Ort' };
 const REMOTE_CLASSES = { remote: 'remote-yes', hybrid: 'remote-hybrid', onsite: 'remote-no' };
 
 let jobs = [];
+let cvText = '';
 let filter = 'all';
+let cvEditMode = false;
 
 function loadJobs() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      jobs = JSON.parse(stored);
-    }
+    if (stored) jobs = JSON.parse(stored);
+    const storedCV = localStorage.getItem(CV_KEY);
+    if (storedCV) cvText = storedCV;
   } catch (e) {
     console.error('Laden fehlgeschlagen', e);
-    jobs = [];
   }
   render();
 }
 
 function saveJobs() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs)); } catch (e) { console.error('Speichern fehlgeschlagen', e); }
+}
+
+function saveCV() {
+  try { localStorage.setItem(CV_KEY, cvText); } catch (e) { console.error('CV-Speicherung fehlgeschlagen', e); }
+}
+
+// --- PDF extraction ---
+async function extractPdfText(arrayBuffer) {
+  if (typeof pdfjsLib === 'undefined') throw new Error('PDF.js nicht geladen');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let text = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(item => item.str).join(' ') + '\n';
+  }
+  return text.trim();
+}
+
+// --- DOCX extraction ---
+async function extractDocxText(arrayBuffer) {
+  if (typeof mammoth === 'undefined') throw new Error('Mammoth.js nicht geladen');
+  const result = await mammoth.extractRawText({ arrayBuffer });
+  return result.value.trim();
+}
+
+// --- Handle CV file ---
+async function handleCVFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  const arrayBuffer = await file.arrayBuffer();
+  let extracted = '';
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
-  } catch (e) {
-    console.error('Speichern fehlgeschlagen', e);
+    if (ext === 'pdf') {
+      extracted = await extractPdfText(arrayBuffer);
+    } else if (ext === 'docx' || ext === 'doc') {
+      extracted = await extractDocxText(arrayBuffer);
+    } else if (ext === 'txt') {
+      extracted = new TextDecoder().decode(arrayBuffer);
+    } else {
+      showStatus('Nur PDF, DOCX oder TXT werden unterstützt.', true);
+      return;
+    }
+    if (!extracted || extracted.length < 10) {
+      showStatus('Die Datei scheint leer zu sein oder konnte nicht gelesen werden.', true);
+      return;
+    }
+    cvText = extracted;
+    saveCV();
+    cvEditMode = false;
+    render();
+    showStatus('Lebenslauf erfolgreich geladen!');
+  } catch (err) {
+    showStatus('Fehler beim Lesen: ' + err.message, true);
   }
 }
 
+function showStatus(msg, isError) {
+  const el = document.getElementById('cvStatusMsg');
+  if (el) {
+    el.textContent = msg;
+    el.style.color = isError ? '#991b1b' : '#065f46';
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 4000);
+  }
+}
+
+// --- Prompt generation ---
+function generatePrompt(job) {
+  if (!cvText) {
+    showStatus('Bitte zuerst einen Lebenslauf hochladen.', true);
+    return;
+  }
+  const prompt = `Bitte erstelle ein maßgeschneidertes Anschreiben (auf Deutsch) für die folgende Stelle. Nutze meinen Lebenslauf als Grundlage.
+
+--- STELLE ---
+Titel: ${job.role}
+Unternehmen: ${job.company}
+Standort: ${job.location}
+Arbeitsmodell: ${REMOTE_LABELS[job.remote] || job.remote}
+${job.url ? 'Link: ' + job.url : ''}
+${job.notes ? 'Notizen: ' + job.notes : ''}
+
+--- MEIN LEBENSLAUF ---
+${cvText}`;
+
+  document.getElementById('modalTitle').textContent = 'Prompt für Anschreiben';
+  document.getElementById('modalDesc').textContent = 'Kopiere diesen Text und füge ihn in Claude, ChatGPT oder ein anderes AI-Tool ein, um ein Anschreiben zu erstellen.';
+  document.getElementById('modalText').value = prompt;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+// --- Short message generation ---
+function generateMessage(job, type) {
+  if (!cvText) {
+    showStatus('Bitte zuerst einen Lebenslauf hochladen.', true);
+    return;
+  }
+
+  const jobBlock = `Titel: ${job.role}
+Unternehmen: ${job.company}
+Standort: ${job.location}
+Arbeitsmodell: ${REMOTE_LABELS[job.remote] || job.remote}
+${job.url ? 'Link: ' + job.url : ''}
+${job.notes ? 'Notizen: ' + job.notes : ''}`;
+
+  let prompt, title, desc;
+
+  if (type === 'email') {
+    title = 'Prompt für E-Mail-Text';
+    desc = 'Kopiere diesen Text und füge ihn in Claude, ChatGPT oder ein anderes AI-Tool ein, um einen kurzen E-Mail-Text zu erstellen.';
+    prompt = `Bitte erstelle einen kurzen, professionellen E-Mail-Text (auf Deutsch) für die Bewerbung auf die folgende Stelle. Der Text soll als E-Mail-Body dienen, in dem ich meinen Lebenslauf und mein Anschreiben als Anhang ankündige. Halte den Text kurz (3–5 Sätze), höflich und professionell.
+
+--- STELLE ---
+${jobBlock}
+
+--- MEIN LEBENSLAUF ---
+${cvText}`;
+  } else {
+    title = 'Prompt für Online-Formular-Text';
+    desc = 'Kopiere diesen Text und füge ihn in Claude, ChatGPT oder ein anderes AI-Tool ein, um einen Text für ein Online-Bewerbungsportal zu erstellen.';
+    prompt = `Bitte erstelle einen kurzen, professionellen Begleittext (auf Deutsch) für ein Online-Bewerbungsformular. Der Text ist für das Freitext-Feld in einem Bewerbungsportal gedacht, in dem ich meine Motivation und wichtigsten Qualifikationen kurz zusammenfasse. Halte den Text kompakt (4–6 Sätze), direkt und überzeugend.
+
+--- STELLE ---
+${jobBlock}
+
+--- MEIN LEBENSLAUF ---
+${cvText}`;
+  }
+
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalDesc').textContent = desc;
+  document.getElementById('modalText').value = prompt;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
 function exportToExcel() {
-  if (jobs.length === 0) { alert('Keine Stellen zum Exportieren vorhanden.'); return; }
+  if (jobs.length === 0) return;
   const today = new Date().toISOString().slice(0,10);
   const rows = jobs.map(j => ({
-    'Stellentitel': j.role,
-    'Unternehmen': j.company,
-    'Standort': j.location,
-    'Remote': REMOTE_LABELS[j.remote] || j.remote,
-    'Status': STATUS_LABELS[j.status] || j.status,
-    'Hinzugefügt': j.dateAdded,
-    'Notizen': j.notes || '',
-    'Stellenlink': j.url || ''
+    'Stellentitel': j.role, 'Unternehmen': j.company, 'Standort': j.location,
+    'Remote': REMOTE_LABELS[j.remote] || j.remote, 'Status': STATUS_LABELS[j.status] || j.status,
+    'Hinzugefügt': j.dateAdded, 'Notizen': j.notes || '', 'Stellenlink': j.url || ''
   }));
-
   if (typeof XLSX !== 'undefined') {
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [
-      { wch: 35 }, { wch: 22 }, { wch: 24 }, { wch: 10 },
-      { wch: 18 }, { wch: 12 }, { wch: 50 }, { wch: 55 }
-    ];
+    ws['!cols'] = [{ wch:35 },{ wch:22 },{ wch:24 },{ wch:10 },{ wch:18 },{ wch:12 },{ wch:50 },{ wch:55 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Bewerbungen');
-    XLSX.writeFile(wb, `bewerbungen_${today}.xlsx`);
+    XLSX.writeFile(wb, 'bewerbungen_' + today + '.xlsx');
   } else {
     const headers = Object.keys(rows[0]);
-    const csvEscape = v => `"${String(v).replace(/"/g, '""')}"`;
-    const csv = [headers.join(',')]
-      .concat(rows.map(r => headers.map(h => csvEscape(r[h])).join(',')))
-      .join('\r\n');
+    const esc = v => '"' + String(v).replace(/"/g, '""') + '"';
+    const csv = [headers.join(',')].concat(rows.map(r => headers.map(h => esc(r[h])).join(','))).join('\r\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `bewerbungen_${today}.csv`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'bewerbungen_' + today + '.csv'; a.click(); URL.revokeObjectURL(a.href);
   }
 }
 
@@ -225,39 +397,25 @@ function importFromExcel(file) {
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
-      const data = new Uint8Array(e.target.result);
-      const wb = XLSX.read(data, { type: 'array' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws);
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
       let count = 0;
       rows.forEach(row => {
-        const role = row['Stellentitel'] || '';
-        const company = row['Unternehmen'] || '';
+        const role = row['Stellentitel'] || '', company = row['Unternehmen'] || '';
         if (!role || !company) return;
-        // Avoid duplicates by checking role+company
-        const exists = jobs.some(j => j.role === role && j.company === company);
-        if (exists) return;
-        const remoteVal = Object.entries(REMOTE_LABELS).find(([k,v]) => v === row['Remote']);
-        const statusVal = Object.entries(STATUS_LABELS).find(([k,v]) => v === row['Status']);
+        if (jobs.some(j => j.role === role && j.company === company)) return;
+        const rm = Object.entries(REMOTE_LABELS).find(([k,v]) => v === row['Remote']);
+        const st = Object.entries(STATUS_LABELS).find(([k,v]) => v === row['Status']);
         jobs.unshift({
           id: Date.now().toString() + Math.random().toString(36).slice(2,6),
-          role,
-          company,
-          location: row['Standort'] || '',
-          remote: remoteVal ? remoteVal[0] : 'onsite',
-          url: row['Stellenlink'] || '',
-          status: statusVal ? statusVal[0] : 'new',
-          dateAdded: row['Hinzugefügt'] || new Date().toISOString().slice(0,10),
-          notes: row['Notizen'] || ''
+          role, company, location: row['Standort'] || '', remote: rm ? rm[0] : 'onsite',
+          url: row['Stellenlink'] || '', status: st ? st[0] : 'new',
+          dateAdded: row['Hinzugefügt'] || new Date().toISOString().slice(0,10), notes: row['Notizen'] || ''
         });
         count++;
       });
-      saveJobs();
-      render();
-      alert(`${count} Stelle(n) importiert.`);
-    } catch (err) {
-      alert('Fehler beim Importieren: ' + err.message);
-    }
+      saveJobs(); render();
+    } catch (err) { console.error('Import fehlgeschlagen', err); }
   };
   reader.readAsArrayBuffer(file);
 }
@@ -270,16 +428,41 @@ function render() {
   const filtered = filter === 'all' ? jobs : jobs.filter(j => j.status === filter);
   const counts = { total: jobs.length, new: 0, draft: 0, applied: 0, interview: 0 };
   jobs.forEach(j => { if (counts[j.status] !== undefined) counts[j.status]++; });
+  const hasCV = cvText.length > 0;
+  const cvPreview = hasCV ? cvText.substring(0, 300) + (cvText.length > 300 ? '...' : '') : '';
 
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="info-banner">
-      Deine Daten werden lokal in diesem Browser gespeichert. Wenn du den Browser oder Computer wechselst, nutze „Als Excel exportieren" und „Excel importieren", um deine Daten mitzunehmen.
+      Deine Daten werden lokal in diesem Browser gespeichert. Nutze „Als Excel exportieren" und „Excel importieren" beim Wechsel von Browser oder Computer.
     </div>
     <div class="header">
       <h1>Bewerbungs-Tracker</h1>
-      <p>Stellenangebote sammeln, Status verfolgen, Überblick behalten.</p>
+      <p>Stellenangebote sammeln, Anschreiben vorbereiten, Überblick behalten.</p>
     </div>
+
+    <!-- CV Section -->
+    <div class="cv-box">
+      <div class="cv-box-header">
+        <h3>Mein Lebenslauf</h3>
+        <span class="cv-status ${hasCV ? 'cv-loaded' : 'cv-empty'}">${hasCV ? 'Geladen' : 'Nicht hochgeladen'}</span>
+      </div>
+      <div class="cv-actions">
+        <button class="btn btn-primary btn-sm" id="cvUploadBtn">PDF / DOCX hochladen</button>
+        <button class="btn btn-secondary btn-sm" id="cvPasteBtn">${cvEditMode ? 'Abbrechen' : 'Text einfügen'}</button>
+        ${hasCV ? '<button class="btn btn-danger btn-sm" id="cvDeleteBtn">Entfernen</button>' : ''}
+        <input type="file" id="cvFileInput" accept=".pdf,.docx,.doc,.txt" style="display:none">
+        <span id="cvStatusMsg" style="display:none; font-size:0.82rem; margin-left:8px;"></span>
+      </div>
+      ${cvEditMode ? `
+        <textarea class="cv-textarea" id="cvTextarea" placeholder="Lebenslauf-Text hier einfügen...">${escapeHtml(cvText)}</textarea>
+        <div class="form-actions">
+          <button class="btn btn-primary btn-sm" id="cvSaveText">Speichern</button>
+        </div>
+      ` : ''}
+      ${hasCV && !cvEditMode ? '<div class="cv-preview">' + escapeHtml(cvPreview) + '</div>' : ''}
+    </div>
+
     <div class="counts">
       <span class="count-chip"><b>${counts.total}</b> gesamt</span>
       <span class="count-chip"><b>${counts.new}</b> neu</span>
@@ -291,13 +474,13 @@ function render() {
       <select id="filterSelect">
         <option value="all"${filter==='all'?' selected':''}>Alle Status</option>
         ${Object.entries(STATUS_LABELS).map(([k,v]) =>
-          `<option value="${k}"${filter===k?' selected':''}>${v}</option>`
+          '<option value="'+k+'"'+(filter===k?' selected':'')+'>'+v+'</option>'
         ).join('')}
       </select>
       <span class="spacer"></span>
       <button class="btn btn-primary" id="toggleAdd">+ Stelle hinzufügen</button>
-      <button class="btn btn-secondary" id="exportExcel">⬇ Als Excel exportieren</button>
-      <button class="btn btn-secondary" id="importExcel">⬆ Excel importieren</button>
+      <button class="btn btn-secondary" id="exportExcel">⬇ Excel Export</button>
+      <button class="btn btn-secondary" id="importExcel">⬆ Excel Import</button>
       <input type="file" id="importFile" accept=".xlsx,.xls,.csv" style="display:none">
     </div>
     <div class="add-form" id="addForm">
@@ -334,10 +517,13 @@ function render() {
             <div class="job-actions">
               <select class="status-select" data-id="${j.id}">
                 ${Object.entries(STATUS_LABELS).map(([k,v]) =>
-                  `<option value="${k}"${j.status===k?' selected':''}>${v}</option>`
+                  '<option value="'+k+'"'+(j.status===k?' selected':'')+'>'+v+'</option>'
                 ).join('')}
               </select>
-              ${j.url ? `<a href="${escapeHtml(j.url)}" target="_blank" rel="noopener">Stelle öffnen</a>` : ''}
+              ${j.url ? '<a href="'+escapeHtml(j.url)+'" target="_blank" rel="noopener">Stelle öffnen</a>' : ''}
+              <button class="btn btn-success btn-sm draft-btn" data-id="${j.id}">Anschreiben</button>
+              <button class="btn btn-secondary btn-sm email-btn" data-id="${j.id}">📧 E-Mail</button>
+              <button class="btn btn-secondary btn-sm portal-btn" data-id="${j.id}">📋 Portal-Text</button>
               <button class="btn btn-danger btn-sm delete-btn" data-id="${j.id}">Löschen</button>
             </div>
             <textarea class="notes-area" data-id="${j.id}" placeholder="Notizen...">${escapeHtml(j.notes || '')}</textarea>
@@ -347,14 +533,11 @@ function render() {
     </div>
   `;
 
-  // Wire events
+  // --- Wire events ---
   document.getElementById('filterSelect').onchange = e => { filter = e.target.value; render(); };
   document.getElementById('exportExcel').onclick = exportToExcel;
   document.getElementById('importExcel').onclick = () => document.getElementById('importFile').click();
-  document.getElementById('importFile').onchange = function() {
-    if (this.files[0]) importFromExcel(this.files[0]);
-    this.value = '';
-  };
+  document.getElementById('importFile').onchange = function() { if (this.files[0]) importFromExcel(this.files[0]); this.value = ''; };
   document.getElementById('toggleAdd').onclick = () => document.getElementById('addForm').classList.toggle('open');
   document.getElementById('cancelNewJob').onclick = () => document.getElementById('addForm').classList.remove('open');
   document.getElementById('saveNewJob').onclick = () => {
@@ -362,21 +545,28 @@ function render() {
     const company = document.getElementById('newCompany').value.trim();
     if (!role || !company) return;
     jobs.unshift({
-      id: Date.now().toString(),
-      role,
-      company,
+      id: Date.now().toString(), role, company,
       location: document.getElementById('newLocation').value.trim() || '',
       remote: document.getElementById('newRemote').value,
       url: document.getElementById('newUrl').value.trim(),
-      status: 'new',
-      dateAdded: new Date().toISOString().slice(0,10),
-      notes: ''
+      status: 'new', dateAdded: new Date().toISOString().slice(0,10), notes: ''
     });
-    saveJobs();
-    document.getElementById('addForm').classList.remove('open');
-    render();
+    saveJobs(); document.getElementById('addForm').classList.remove('open'); render();
   };
 
+  // CV events
+  document.getElementById('cvUploadBtn').onclick = () => document.getElementById('cvFileInput').click();
+  document.getElementById('cvFileInput').onchange = function() { if (this.files[0]) handleCVFile(this.files[0]); this.value = ''; };
+  document.getElementById('cvPasteBtn').onclick = () => { cvEditMode = !cvEditMode; render(); };
+  const cvDel = document.getElementById('cvDeleteBtn');
+  if (cvDel) cvDel.onclick = () => { cvText = ''; saveCV(); cvEditMode = false; render(); };
+  const cvSave = document.getElementById('cvSaveText');
+  if (cvSave) cvSave.onclick = () => {
+    cvText = document.getElementById('cvTextarea').value.trim();
+    saveCV(); cvEditMode = false; render();
+  };
+
+  // Job card events
   document.querySelectorAll('.status-select').forEach(sel => {
     sel.onchange = function() {
       const job = jobs.find(j => j.id === this.dataset.id);
@@ -384,10 +574,24 @@ function render() {
     };
   });
   document.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.onclick = function() { jobs = jobs.filter(j => j.id !== this.dataset.id); saveJobs(); render(); };
+  });
+  document.querySelectorAll('.draft-btn').forEach(btn => {
     btn.onclick = function() {
-      jobs = jobs.filter(j => j.id !== this.dataset.id);
-      saveJobs();
-      render();
+      const job = jobs.find(j => j.id === this.dataset.id);
+      if (job) generatePrompt(job);
+    };
+  });
+  document.querySelectorAll('.email-btn').forEach(btn => {
+    btn.onclick = function() {
+      const job = jobs.find(j => j.id === this.dataset.id);
+      if (job) generateMessage(job, 'email');
+    };
+  });
+  document.querySelectorAll('.portal-btn').forEach(btn => {
+    btn.onclick = function() {
+      const job = jobs.find(j => j.id === this.dataset.id);
+      if (job) generateMessage(job, 'portal');
     };
   });
   document.querySelectorAll('.notes-area').forEach(ta => {
@@ -398,10 +602,36 @@ function render() {
   });
 }
 
-document.addEventListener('DOMContentLoaded', loadJobs);
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('modalClose').onclick = () => document.getElementById('modalOverlay').classList.remove('open');
+  document.getElementById('modalCopy').onclick = () => {
+    const ta = document.getElementById('modalText');
+    ta.select();
+    navigator.clipboard.writeText(ta.value).then(() => {
+      const btn = document.getElementById('modalCopy');
+      btn.textContent = 'Kopiert!';
+      setTimeout(() => { btn.textContent = 'Kopieren'; }, 1500);
+    });
+  };
+  document.getElementById('modalOverlay').onclick = function(e) {
+    if (e.target === this) this.classList.remove('open');
+  };
+  loadJobs();
+});
 </script>
 </head>
 <body>
   <div class="container" id="app"></div>
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <h3 id="modalTitle">Prompt für Anschreiben</h3>
+      <p id="modalDesc">Kopiere diesen Text und füge ihn in Claude, ChatGPT oder ein anderes AI-Tool ein, um ein Anschreiben zu erstellen.</p>
+      <textarea id="modalText" readonly></textarea>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="modalClose">Schließen</button>
+        <button class="btn btn-primary" id="modalCopy">Kopieren</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
