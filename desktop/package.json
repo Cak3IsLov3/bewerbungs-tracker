@@ -1,0 +1,33 @@
+{
+  "name": "bewerbungs-tracker",
+  "version": "1.0.0",
+  "description": "Bewerbungs-Tracker – Stellenangebote verwalten, Anschreiben vorbereiten",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build-win": "electron-builder --win portable",
+    "build-all": "electron-builder --win --linux"
+  },
+  "build": {
+    "appId": "com.bewerbungstracker.app",
+    "productName": "Bewerbungs-Tracker",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "index.html"
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "icon.png"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.0"
+  }
+}
