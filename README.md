@@ -1,53 +1,51 @@
-# Bewerbungs-Tracker — Desktop-App (.exe) bauen
+# Bewerbungs-Tracker
 
-## Voraussetzungen
+Ein einfacher, lokaler Bewerbungs-Tracker als einzelne HTML-Datei. Keine Installation nötig — einfach im Browser öffnen.
 
-- [Node.js](https://nodejs.org/) (Version 18 oder neuer)
-- Windows 10/11
+## Funktionen
 
-## Anleitung
+### Stellenverwaltung
+- Stellenangebote hinzufügen, bearbeiten und löschen
+- Status verfolgen: Neu, Entwurf fertig, Beworben, Vorstellungsgespräch, Abgelehnt
+- Arbeitsmodell kennzeichnen: Remote, Hybrid, Vor Ort
+- Notizen und Links pro Stelle
+- Filtern nach Status
 
-### 1. Projekt vorbereiten
+### Lebenslauf hochladen
+- PDF, DOCX oder TXT hochladen — der Text wird automatisch ausgelesen
+- Alternativ: Lebenslauf-Text manuell einfügen
+- Wird lokal im Browser gespeichert (einmalig hochladen genügt)
 
-Entpacke diesen Ordner (oder klone das Repo) und öffne ein Terminal im Projektordner:
+### Texte generieren (AI-Prompts)
+Für jede Stelle können drei verschiedene Prompts generiert werden, die den Lebenslauf und die Stellendaten kombinieren:
 
-```bash
-cd bewerbungs-tracker-app
-```
+- **Anschreiben** — vollständiges Bewerbungsanschreiben
+- **📧 E-Mail** — kurzer E-Mail-Text (3–5 Sätze), um Lebenslauf und Anschreiben als Anhang anzukündigen
+- **📋 Portal-Text** — kompakter Begleittext (4–6 Sätze) für das Freitextfeld in einem Online-Bewerbungsportal
 
-### 2. Abhängigkeiten installieren
+Die generierten Prompts können per Klick kopiert und in Claude, ChatGPT oder ein anderes AI-Tool eingefügt werden.
 
-```bash
-npm install
-```
+### Daten-Export & -Import
+- Excel-Export (.xlsx) aller Stellen
+- Excel-Import zum Wiederherstellen oder Teilen von Daten
+- CSV-Fallback, falls SheetJS nicht verfügbar ist
 
-### 3. App testen (ohne .exe zu bauen)
+## Nutzung
 
-```bash
-npm start
-```
+**Online (GitHub Pages):**  
+Öffne die GitHub Pages-Seite direkt im Browser — keine Installation nötig.
 
-Die App öffnet sich als Fenster. Wenn alles funktioniert, weiter mit Schritt 4.
+**Offline:**  
+Lade `index.html` herunter und öffne die Datei in einem beliebigen Browser.
 
-### 4. .exe bauen
+## Technische Details
 
-```bash
-npm run build-win
-```
-
-Nach dem Build findest du die portable `.exe` im Ordner `dist/`. Diese Datei kann ohne Installation auf jedem Windows-Computer gestartet werden.
-
-## Dateien
-
-| Datei | Beschreibung |
-|-------|-------------|
-| `main.js` | Electron-Hauptprozess (öffnet das Fenster) |
-| `index.html` | Der Bewerbungs-Tracker (komplette App) |
-| `package.json` | Projektdefinition und Build-Konfiguration |
+- Einzelne HTML-Datei, kein Backend, kein Framework
+- Daten werden im `localStorage` des Browsers gespeichert
+- Externe Bibliotheken (via CDN): [SheetJS](https://sheetjs.com/) (Excel), [Mammoth.js](https://github.com/mwilliamson/mammoth.js) (DOCX), [PDF.js](https://mozilla.github.io/pdf.js/) (PDF)
 
 ## Hinweise
 
-- Die `.exe` ist eine **portable** Datei — keine Installation nötig, einfach starten
-- Daten werden weiterhin lokal im Electron-Storage gespeichert
-- Die Dateigröße ist ca. 80–120 MB (Electron enthält einen eingebetteten Browser)
-- Optional: Füge eine `icon.png` (256×256 px) hinzu für ein eigenes App-Icon
+- Daten bleiben pro Browser gespeichert — beim Wechsel des Browsers oder Computers den Excel-Export/Import nutzen
+- Keine Registrierung, kein Server, keine Kosten
+- Der Lebenslauf verlässt den Browser nicht — alles bleibt lokal
