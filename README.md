@@ -11,6 +11,11 @@ Ein einfacher, lokaler Bewerbungs-Tracker als einzelne HTML-Datei. Keine Install
 - Notizen und Links pro Stelle
 - Filtern nach Status
 
+### Suche
+- Echtzeit-Suchfeld in der Toolbar
+- Durchsucht Stellentitel, Unternehmen, Standort und Notizen
+- Sofortige Ergebnisse beim Tippen
+
 ### Lebenslauf hochladen
 - PDF, DOCX oder TXT hochladen — der Text wird automatisch ausgelesen
 - Alternativ: Lebenslauf-Text manuell einfügen
@@ -37,6 +42,22 @@ Die generierten Prompts können per Klick kopiert und in Claude, ChatGPT oder ei
 
 **Offline:**  
 Lade `index.html` herunter und öffne die Datei in einem beliebigen Browser.
+
+**Desktop-App (.exe):**  
+Siehe den Ordner `desktop/` für Anweisungen zum Bauen einer portablen Windows-App mit Electron.
+
+## Projektstruktur
+
+```
+bewerbungs-tracker/
+├── index.html          ← GitHub Pages (Web-Version)
+├── README.md           ← Diese Datei
+└── desktop/
+    ├── main.js         ← Electron-Hauptprozess
+    ├── index.html      ← Tracker für die Desktop-App
+    ├── package.json    ← Build-Konfiguration
+    └── README.md       ← Bauanleitung für die .exe
+```
 
 ## Technische Details
 
