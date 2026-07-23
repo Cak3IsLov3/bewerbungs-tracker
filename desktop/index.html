@@ -45,6 +45,11 @@
     padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius);
     font-size: 0.88rem; background: var(--card); color: var(--text); cursor: pointer;
   }
+  .toolbar input[type="text"] {
+    padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius);
+    font-size: 0.88rem; background: var(--card); color: var(--text); min-width: 180px;
+  }
+  .toolbar input[type="text"]:focus { outline: none; border-color: var(--accent); }
   .toolbar .spacer { flex: 1; }
 
   .btn {
@@ -217,6 +222,7 @@ const REMOTE_CLASSES = { remote: 'remote-yes', hybrid: 'remote-hybrid', onsite: 
 let jobs = [];
 let cvText = '';
 let filter = 'all';
+let searchQuery = '';
 let cvEditMode = false;
 
 function loadJobs() {
@@ -425,7 +431,17 @@ function escapeHtml(s) {
 }
 
 function render() {
-  const filtered = filter === 'all' ? jobs : jobs.filter(j => j.status === filter);
+  const filtered = jobs.filter(j => {
+    if (filter !== 'all' && j.status !== filter) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return (j.role || '').toLowerCase().includes(q)
+        || (j.company || '').toLowerCase().includes(q)
+        || (j.location || '').toLowerCase().includes(q)
+        || (j.notes || '').toLowerCase().includes(q);
+    }
+    return true;
+  });
   const counts = { total: jobs.length, new: 0, draft: 0, applied: 0, interview: 0 };
   jobs.forEach(j => { if (counts[j.status] !== undefined) counts[j.status]++; });
   const hasCV = cvText.length > 0;
@@ -471,6 +487,7 @@ function render() {
       <span class="count-chip"><b>${counts.interview}</b> Gespräch</span>
     </div>
     <div class="toolbar">
+      <input type="text" id="searchInput" placeholder="🔍 Suchen..." value="${escapeHtml(searchQuery)}">
       <select id="filterSelect">
         <option value="all"${filter==='all'?' selected':''}>Alle Status</option>
         ${Object.entries(STATUS_LABELS).map(([k,v]) =>
@@ -501,7 +518,7 @@ function render() {
       </div>
     </div>
     <div id="jobList">
-      ${filtered.length === 0 ? '<div class="empty-state">Keine Stellen in dieser Kategorie.</div>' :
+      ${filtered.length === 0 ? '<div class="empty-state">' + (searchQuery ? 'Keine Stellen gefunden für „' + escapeHtml(searchQuery) + '".' : 'Keine Stellen in dieser Kategorie.') + '</div>' :
         filtered.map(j => `
           <div class="job-card" data-id="${j.id}">
             <div class="job-top">
@@ -534,6 +551,7 @@ function render() {
   `;
 
   // --- Wire events ---
+  document.getElementById('searchInput').oninput = e => { searchQuery = e.target.value; render(); setTimeout(() => { const si = document.getElementById('searchInput'); si.focus(); si.selectionStart = si.selectionEnd = si.value.length; }, 0); };
   document.getElementById('filterSelect').onchange = e => { filter = e.target.value; render(); };
   document.getElementById('exportExcel').onclick = exportToExcel;
   document.getElementById('importExcel').onclick = () => document.getElementById('importFile').click();
