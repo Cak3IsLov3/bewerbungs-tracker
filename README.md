@@ -6,6 +6,7 @@ Ein einfacher, lokaler Bewerbungs-Tracker als einzelne HTML-Datei. Keine Install
 
 ### Stellenverwaltung
 - Stellenangebote hinzufügen, bearbeiten und löschen
+- Neue Stellen werden über ein Pop-up-Fenster hinzugefügt — von überall auf der Seite erreichbar
 - Status verfolgen: Neu, Entwurf fertig, Beworben, Vorstellungsgespräch, Abgelehnt
 - Arbeitsmodell kennzeichnen: Remote, Hybrid, Vor Ort
 - Notizen und Links pro Stelle
@@ -15,6 +16,9 @@ Ein einfacher, lokaler Bewerbungs-Tracker als einzelne HTML-Datei. Keine Install
 - Echtzeit-Suchfeld in der Toolbar
 - Durchsucht Stellentitel, Unternehmen, Standort und Notizen
 - Sofortige Ergebnisse beim Tippen
+
+### Sticky Toolbar
+- Suchfeld, Statusfilter und alle Aktionsschaltflächen bleiben beim Scrollen immer sichtbar
 
 ### Lebenslauf hochladen
 - PDF, DOCX oder TXT hochladen — der Text wird automatisch ausgelesen

@@ -40,6 +40,8 @@
 
   .toolbar {
     display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px;
+    position: sticky; top: 0; z-index: 100; background: var(--bg);
+    padding: 12px 0; border-bottom: 1px solid var(--border);
   }
   .toolbar select {
     padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius);
@@ -69,10 +71,9 @@
 
   .add-form, .cv-section {
     background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 0; max-height: 0; overflow: hidden; transition: max-height 0.4s ease, padding 0.3s ease;
     margin-bottom: 16px; box-shadow: var(--shadow);
   }
-  .add-form.open { max-height: 500px; padding: 20px; }
+  .cv-section { padding: 0; max-height: 0; overflow: hidden; transition: max-height 0.4s ease, padding 0.3s ease; }
   .cv-section.open { max-height: 2000px; padding: 20px; }
   .form-grid {
     display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
@@ -500,23 +501,6 @@ function render() {
       <button class="btn btn-secondary" id="importExcel">⬆ Excel Import</button>
       <input type="file" id="importFile" accept=".xlsx,.xls,.csv" style="display:none">
     </div>
-    <div class="add-form" id="addForm">
-      <div class="form-grid">
-        <input type="text" id="newRole" placeholder="Stellentitel">
-        <input type="text" id="newCompany" placeholder="Unternehmen">
-        <input type="text" id="newLocation" placeholder="Standort">
-        <select id="newRemote">
-          <option value="remote">Remote</option>
-          <option value="hybrid">Hybrid</option>
-          <option value="onsite">Vor Ort</option>
-        </select>
-        <input type="text" class="full" id="newUrl" placeholder="Link zur Stelle (https://...)">
-      </div>
-      <div class="form-actions">
-        <button class="btn btn-primary" id="saveNewJob">Speichern</button>
-        <button class="btn btn-secondary" id="cancelNewJob">Abbrechen</button>
-      </div>
-    </div>
     <div id="jobList">
       ${filtered.length === 0 ? '<div class="empty-state">' + (searchQuery ? 'Keine Stellen gefunden für „' + escapeHtml(searchQuery) + '".' : 'Keine Stellen in dieser Kategorie.') + '</div>' :
         filtered.map(j => `
@@ -556,21 +540,7 @@ function render() {
   document.getElementById('exportExcel').onclick = exportToExcel;
   document.getElementById('importExcel').onclick = () => document.getElementById('importFile').click();
   document.getElementById('importFile').onchange = function() { if (this.files[0]) importFromExcel(this.files[0]); this.value = ''; };
-  document.getElementById('toggleAdd').onclick = () => document.getElementById('addForm').classList.toggle('open');
-  document.getElementById('cancelNewJob').onclick = () => document.getElementById('addForm').classList.remove('open');
-  document.getElementById('saveNewJob').onclick = () => {
-    const role = document.getElementById('newRole').value.trim();
-    const company = document.getElementById('newCompany').value.trim();
-    if (!role || !company) return;
-    jobs.unshift({
-      id: Date.now().toString(), role, company,
-      location: document.getElementById('newLocation').value.trim() || '',
-      remote: document.getElementById('newRemote').value,
-      url: document.getElementById('newUrl').value.trim(),
-      status: 'new', dateAdded: new Date().toISOString().slice(0,10), notes: ''
-    });
-    saveJobs(); document.getElementById('addForm').classList.remove('open'); render();
-  };
+  document.getElementById('toggleAdd').onclick = () => openAddModal();
 
   // CV events
   document.getElementById('cvUploadBtn').onclick = () => document.getElementById('cvFileInput').click();
@@ -620,7 +590,40 @@ function render() {
   });
 }
 
+function openAddModal() {
+  document.getElementById('addModalOverlay').classList.add('open');
+  // Clear fields
+  document.getElementById('addRole').value = '';
+  document.getElementById('addCompany').value = '';
+  document.getElementById('addLocation').value = '';
+  document.getElementById('addRemote').value = 'remote';
+  document.getElementById('addUrl').value = '';
+  setTimeout(() => { document.getElementById('addRole').focus(); }, 100);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  // Add modal events
+  document.getElementById('addModalClose').onclick = () => document.getElementById('addModalOverlay').classList.remove('open');
+  document.getElementById('addModalOverlay').onclick = function(e) {
+    if (e.target === this) this.classList.remove('open');
+  };
+  document.getElementById('addModalSave').onclick = () => {
+    const role = document.getElementById('addRole').value.trim();
+    const company = document.getElementById('addCompany').value.trim();
+    if (!role || !company) return;
+    jobs.unshift({
+      id: Date.now().toString(), role, company,
+      location: document.getElementById('addLocation').value.trim() || '',
+      remote: document.getElementById('addRemote').value,
+      url: document.getElementById('addUrl').value.trim(),
+      status: 'new', dateAdded: new Date().toISOString().slice(0,10), notes: ''
+    });
+    saveJobs();
+    document.getElementById('addModalOverlay').classList.remove('open');
+    render();
+  };
+
+  // Prompt modal events
   document.getElementById('modalClose').onclick = () => document.getElementById('modalOverlay').classList.remove('open');
   document.getElementById('modalCopy').onclick = () => {
     const ta = document.getElementById('modalText');
@@ -640,6 +643,30 @@ document.addEventListener('DOMContentLoaded', () => {
 </head>
 <body>
   <div class="container" id="app"></div>
+
+  <!-- Add vacancy modal -->
+  <div class="modal-overlay" id="addModalOverlay">
+    <div class="modal">
+      <h3>Neue Stelle hinzufügen</h3>
+      <div class="form-grid" style="margin-top:14px;">
+        <input type="text" id="addRole" placeholder="Stellentitel">
+        <input type="text" id="addCompany" placeholder="Unternehmen">
+        <input type="text" id="addLocation" placeholder="Standort">
+        <select id="addRemote">
+          <option value="remote">Remote</option>
+          <option value="hybrid">Hybrid</option>
+          <option value="onsite">Vor Ort</option>
+        </select>
+        <input type="text" class="full" id="addUrl" placeholder="Link zur Stelle (https://...)">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="addModalClose">Abbrechen</button>
+        <button class="btn btn-primary" id="addModalSave">Speichern</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Prompt modal -->
   <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
       <h3 id="modalTitle">Prompt für Anschreiben</h3>
